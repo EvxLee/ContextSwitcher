@@ -61,11 +61,11 @@ export async function getVerdict(
   const winner = decideWinner(scoreA, scoreB);
   const verdict =
     winner === "draw"
-      ? `Dead heat at ${scoreA}-${scoreB}. Both sides landed clean hits and both took fouls. The crowd decides this one.`
+      ? `Plot twist: ${scoreA}-${scoreB}. Both humans made real points and both got caught doing weird things with logic. The internet may now argue about the result forever.`
       : `${winner === "A" ? "Speaker A" : "Speaker B"} takes it, ${Math.max(
           scoreA,
           scoreB
-        )} to ${Math.min(scoreA, scoreB)}. Cleaner argument, fewer cheap shots, and the closing point sealed it.`;
+        )} to ${Math.min(scoreA, scoreB)}. Better reasoning, fewer logic glitches, and one closing point that actually did its homework.`;
 
   return { winner, verdict };
 }

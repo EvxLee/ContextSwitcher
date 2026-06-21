@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Debate Referee",
-  description: "A live AI referee for spoken arguments.",
+  title: "Collina | AI Debate Playground",
+  description: "Big opinions go in. Scores, fallacies, and a tiny bit of chaos come out.",
 };
 
 export default function RootLayout({
