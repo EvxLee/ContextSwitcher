@@ -13,8 +13,13 @@
 import * as mock from "./mockDebateClient";
 import * as real from "./realDebateClient";
 
-const impl =
-  process.env.NEXT_PUBLIC_USE_REAL_PIPELINE === "true" ? real : mock;
+const REAL = process.env.NEXT_PUBLIC_USE_REAL_PIPELINE === "true";
 
-export const startDebate = impl.startDebate;
-export const getVerdict = impl.getVerdict;
+// Live mic ALWAYS needs the real streaming pipeline (mock can't capture a mic);
+// "demo"/File respect the flag so the mock demo stays the safe default.
+export const startDebate: typeof real.startDebate = (source, onTurn, onComplete, onInterim) => {
+  const impl = source === "mic" || REAL ? real : mock;
+  return impl.startDebate(source, onTurn, onComplete, onInterim);
+};
+
+export const getVerdict: typeof real.getVerdict = REAL ? real.getVerdict : mock.getVerdict;

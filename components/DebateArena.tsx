@@ -2,8 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getVerdict, startDebate } from "@/lib/debate-client";
-import type { DebateSession, DebateStatus, Turn } from "@/lib/types";
+import type { DebateSession, DebateStatus, Speaker, Turn } from "@/lib/types";
 import { ExpandIcon, PlayIcon, RotateIcon, SparkIcon, VolumeIcon } from "./Icons";
+
+// Mic + Stop glyphs for the live controls (kept local to avoid touching Icons.tsx).
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <line x1="12" y1="17" x2="12" y2="22" />
+      <line x1="8" y1="22" x2="16" y2="22" />
+    </svg>
+  );
+}
+function StopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
 import { Scoreboard } from "./Scoreboard";
 import { Transcript } from "./Transcript";
 import { useRefAudio } from "./useRefAudio";
@@ -27,6 +46,8 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
   const [verdictLoading, setVerdictLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mode, setMode] = useState<"demo" | "mic">("demo");
+  const [interim, setInterim] = useState<{ speaker: Speaker | null; text: string } | null>(null);
   const controllerRef = useRef<DebateController | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,13 +90,14 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
     };
   }, []);
 
-  const runDebate = useCallback(() => {
+  const launch = useCallback((source: "demo" | "mic") => {
     const runId = ++runIdRef.current;
     controllerRef.current?.stop();
     if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
     unlockAudio();
     stopAudio();
 
+    setMode(source);
     setStatus("live");
     setTopic(initialTopic);
     setTurns([]);
@@ -84,16 +106,18 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
     setLastTurn(null);
     setSession(null);
     setVerdictLoading(false);
+    setInterim(null);
     setThinking(true);
     setError(null);
 
     try {
       controllerRef.current = startDebate(
-        "demo",
+        source,
         (turn) => {
           if (runId !== runIdRef.current) return;
           if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
           setThinking(false);
+          setInterim(null);
           setTurns((current) => [...current, turn]);
           setLastTurn(turn);
           if (turn.speaker === "A") setScoreA((score) => score + turn.pointDelta);
@@ -132,6 +156,10 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
           } finally {
             if (runId === runIdRef.current) setVerdictLoading(false);
           }
+        },
+        (speaker, text) => {
+          if (runId !== runIdRef.current) return;
+          setInterim(text ? { speaker, text } : null);
         }
       );
     } catch {
@@ -141,6 +169,10 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
       setError("The debate refused to launch. Check the audio and give it another dramatic click.");
     }
   }, [initialTopic, playCallout, speakVerdict, stopAudio, unlockAudio]);
+
+  const runDebate = useCallback(() => launch("demo"), [launch]);
+  const goLive = useCallback(() => launch("mic"), [launch]);
+  const stopDebate = useCallback(() => controllerRef.current?.stop(), []);
 
   useEffect(() => {
     const handleDemoShortcut = (event: KeyboardEvent) => {
@@ -215,8 +247,17 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
             <VolumeIcon className="h-5 w-5" muted={muted} />
           </button>
           {status === "setup" ? (
-            <button type="button" className="nav-button" onClick={runDebate}>
-              <PlayIcon className="h-4 w-4" /> Start the chaos
+            <>
+              <button type="button" className="nav-button" onClick={runDebate}>
+                <PlayIcon className="h-4 w-4" /> Start the chaos
+              </button>
+              <button type="button" className="nav-button nav-button--quiet" onClick={goLive}>
+                <MicIcon className="h-4 w-4" /> Go live (mic)
+              </button>
+            </>
+          ) : mode === "mic" && status === "live" ? (
+            <button type="button" className="nav-button" onClick={stopDebate}>
+              <StopIcon className="h-4 w-4" /> End debate
             </button>
           ) : (
             <button type="button" className="nav-button nav-button--quiet" onClick={runDebate}>
@@ -250,6 +291,18 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
             <span />
           </div>
         </header>
+
+        {mode === "mic" && status === "live" && interim ? (
+          <div
+            className="panel-frame"
+            style={{ padding: "12px 16px", display: "flex", gap: "12px", alignItems: "center" }}
+          >
+            <span className="section-kicker" style={{ whiteSpace: "nowrap" }}>
+              LIVE · SPEAKER {interim.speaker ?? "?"}
+            </span>
+            <p style={{ margin: 0, opacity: 0.85 }}>{interim.text}</p>
+          </div>
+        ) : null}
 
         <div className="arena-grid">
           <Transcript
