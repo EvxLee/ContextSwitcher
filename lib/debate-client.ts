@@ -4,12 +4,17 @@
 //   startDebate(source, onTurn, onComplete) -> { stop }
 //   getVerdict(session) -> { winner, verdict }
 //
-// Today this points at the MOCK (replays mockTurns). In Batch 5, Evan adds
-// lib/realDebateClient.ts (Deepgram -> turns -> Claude analysis -> scored turns)
-// and flips the single line below. Same signatures, so the UI is unchanged.
+// MOCK replays mockTurns with zero backend; REAL (lib/realDebateClient.ts) runs
+// the live pipeline (Deepgram -> turns -> Claude analysis -> TTS -> verdict) via
+// API routes. Same signatures, so the UI is identical either way.
+//
+// Default is MOCK so the UI works with no keys. Set
+// NEXT_PUBLIC_USE_REAL_PIPELINE=true (and provide a demo clip + keys) to go live.
 import * as mock from "./mockDebateClient";
+import * as real from "./realDebateClient";
 
-const impl = mock; // Batch 5: swap to `real` (lib/realDebateClient.ts)
+const impl =
+  process.env.NEXT_PUBLIC_USE_REAL_PIPELINE === "true" ? real : mock;
 
 export const startDebate = impl.startDebate;
 export const getVerdict = impl.getVerdict;

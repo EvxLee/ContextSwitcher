@@ -27,3 +27,14 @@ yarn-error.log*
 # local model cache (Transformers.js downloads, Batch 2)
 /.cache
 /models
+
+# audio/video clips (don't commit big media)
+/samples
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.mov
+*.webm
+*.flac
+*.ogg

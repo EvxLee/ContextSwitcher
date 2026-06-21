@@ -10,7 +10,8 @@ const TURN_DELAY_MS = 2600; // pacing between turns, so the scoreboard has room 
 export function startDebate(
   _audioSource: File | "mic" | "demo",
   onTurn: (turn: Turn) => void,
-  onComplete: (session: DebateSession) => void
+  onComplete: (session: DebateSession) => void,
+  _onInterim?: (speaker: Speaker | null, text: string) => void
 ): { stop: () => void } {
   let stopped = false;
   const timers: ReturnType<typeof setTimeout>[] = [];
