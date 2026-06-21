@@ -1,13 +1,15 @@
 {
   "name": "debate-referee",
   "version": "0.1.0",
-  "description": "Cal Hacks AI Hackathon Submission",
+  "description": "A playful live AI referee for spoken debates.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test:scoring": "tsx scripts/test-scoring.ts"
+    "lint": "tsc --noEmit",
+    "test:scoring": "tsx scripts/test-scoring.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "check": "npm run lint && npm run test:scoring && npm run build"
   },
   "repository": {
     "type": "git",
@@ -20,7 +22,7 @@
     "url": "https://github.com/EvxLee/ContextSwitcher/issues"
   },
   "homepage": "https://github.com/EvxLee/ContextSwitcher#readme",
-  "private": "true",
+  "private": true,
   "dependencies": {
     "next": "^16.2.9",
     "react": "^19.2.7",
