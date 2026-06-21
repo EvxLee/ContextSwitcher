@@ -1,54 +1,129 @@
-# Collina
+# Collina — AI Debate Referee
 
-Collina is a playful live AI referee for spoken debates. Two people argue, the app separates their voices, catches logical fallacies, moves a live scoreboard, calls out major logic glitches, and declares a winner.
+Two people argue out loud. Collina separates their voices, catches logical fallacies in real time, moves a live scoreboard, calls out fouls in a dramatic AI voice, and crowns a winner.
 
-The frontend currently uses timed mock turns so UI work can continue safely while Evan's real Deepgram, Claude, and Redis pipeline is developed in parallel. Both implementations preserve the same `startDebate` and `getVerdict` contract.
+> Built with **Deepgram** (speech-to-text + diarization + text-to-speech), **Claude** (fallacy analysis + verdict), and **Redis** (fallacy vector search).
 
-## Quick start
+---
 
-```powershell
+## ⚡ TL;DR
+
+```bash
 npm install
-npm run preflight
 npm run dev
 ```
 
-Open `http://localhost:3000`, press `F` for presentation mode, and click `Start the chaos`.
+Open **http://localhost:3000** → click **"Start the chaos"**. That's the full demo, no keys needed.
 
-No API keys are required for the mock demo.
+---
 
-## Real pipeline environment
+## 🎮 Two ways to run it
 
-After the backend branch is merged, copy `.env.example` to `.env.local` and add:
+| Button | What it does | Needs keys? |
+|---|---|---|
+| **Start the chaos** | Plays a scripted debate (mock). Polished, offline, can't fail. **Use this for the demo.** | ❌ No |
+| **Go live (mic)** | Real-time: you + a friend talk into the mic, the AI judges live. | ✅ Yes (see below) |
 
+---
+
+## 1️⃣ Mock demo (works right now)
+
+```bash
+npm install      # one time
+npm run dev      # start the app
+```
+
+1. Open **http://localhost:3000**
+2. Press **`F`** for fullscreen presentation mode
+3. Click **"Start the chaos"**
+
+No API keys, no internet, no setup. This is the stage-safe demo.
+
+---
+
+## 2️⃣ Live mode (real mic + real AI)
+
+Live mode needs three services. Do these once:
+
+### Step 1 — Add your keys
+Copy the example file and fill it in:
+```bash
+cp .env.example .env
+```
+Edit `.env`:
 ```env
-DEEPGRAM_API_KEY=
-ANTHROPIC_API_KEY=
+ANTHROPIC_API_KEY=sk-ant-...        # Claude (analysis + verdict)
+DEEPGRAM_API_KEY=...                # Deepgram (mic + voice) — needs "Member" role
 REDIS_URL=redis://localhost:6379
+NEXT_PUBLIC_USE_REAL_PIPELINE=true  # turn the real pipeline ON
 ```
 
-Never expose these values with `NEXT_PUBLIC_` and never commit `.env.local`.
-
-## Commands
-
-```powershell
-npm run dev           # Start the local app
-npm run preflight     # Check keys, client mode, Node, and demo audio
-npm run lint          # Run strict TypeScript checks
-npm run test:scoring  # Verify deterministic scoring
-npm run build         # Create the production build
-npm run check         # Run the complete verification sequence
+### Step 2 — Start Redis
+```bash
+docker run -d --name debate-redis -p 6379:6379 redis/redis-stack:latest
+npm run seed:redis     # load the fallacy taxonomy (run once)
 ```
 
-## Stage controls
+### Step 3 — Run it
+```bash
+npm run dev
+```
+Open **http://localhost:3000** → click **"Go live (mic)"** → allow the microphone → debate → click **"End debate"** for the verdict.
 
-- `F`: enter or exit presentation mode
-- `M`: mute or restore the AI ref
-- `R`: restart the debate
+> 🎙️ **Tip for clean voice separation:** take clear turns, don't talk over each other, and ideally use two distinct-sounding voices.
 
-## Demo preparation
+---
 
-See [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md) for the four-minute pitch, recorded debate script, fallback ladder, and stage checklist.
+## ⌨️ Controls
 
-## Integration contract
+| Key / Button | Action |
+|---|---|
+| `Start the chaos` | Run the mock demo |
+| `Go live (mic)` | Start a real-time mic debate |
+| `End debate` | Stop the mic and get the verdict |
+| `F` | Fullscreen presentation mode |
+| `M` | Mute / unmute the AI ref voice |
+| `R` | Restart the debate |
 
-The UI imports only `startDebate` and `getVerdict` from `lib/debate-client.ts`. Evan's real client must preserve that interface. The existing mock client remains the stage-safe fallback after the merge.
+---
+
+## 🧰 Commands
+
+```bash
+npm run dev             # start the app (http://localhost:3000)
+npm run build           # production build
+npm run lint            # strict TypeScript check
+npm run seed:redis      # load fallacies into Redis (live mode)
+npm run test:scoring    # verify the scoring math
+npm run test:analyze    # test fallacy detection (needs Anthropic key + Redis)
+npm run test:transcribe -- <audio-file>   # test a recorded clip
+```
+
+---
+
+## 🩹 Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| **"credit balance too low"** (analysis/verdict fail) | Add credits to your Anthropic account → console.anthropic.com → Plans & Billing |
+| **403 on mic / "Insufficient permissions"** | Your Deepgram key needs the **Member** role — create a new key with it |
+| **Live mic does nothing** | Check `NEXT_PUBLIC_USE_REAL_PIPELINE=true`, all keys set, Redis running, mic permission allowed |
+| **Redis errors** | Start it: `docker start debate-redis` (then `npm run seed:redis`) |
+| **Falls back to mock** | That's intentional when keys/flag are missing — the demo always works |
+
+---
+
+## 🧠 How it works
+
+```
+Audio ─▶ Deepgram (transcribe + who-said-what)
+      ─▶ split into turns
+      ─▶ Redis finds the most relevant fallacies
+      ─▶ Claude judges the turn (fallacies + strength)
+      ─▶ score updates live  +  Deepgram voices the foul
+End  ─▶ Claude delivers the winner's verdict
+```
+
+The UI imports only `startDebate` and `getVerdict` from `lib/debate-client.ts`. Mock and real pipelines share that exact contract, so the UI is identical either way.
+
+For the pitch script and stage checklist, see [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md).
