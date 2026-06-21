@@ -125,5 +125,3 @@ End  ─▶ Claude delivers the winner's verdict
 ```
 
 The UI imports only `startDebate` and `getVerdict` from `lib/debate-client.ts`. Mock and real pipelines share that exact contract, so the UI is identical either way.
-
-For the pitch script and stage checklist, see [DEMO_RUNBOOK.md](./DEMO_RUNBOOK.md).
