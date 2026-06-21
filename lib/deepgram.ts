@@ -27,6 +27,33 @@ export interface DeepgramUtterance {
   end: number;
 }
 
+interface DiarizedWord {
+  speaker?: number;
+  speaker_confidence?: number;
+}
+
+function confidentUtteranceSpeaker(
+  fallback: number,
+  words: DiarizedWord[] | undefined
+): number {
+  if (!words?.length) return fallback;
+  const scores = new Map<number, number>();
+  for (const word of words) {
+    if (word.speaker === undefined) continue;
+    const weight = Math.max(0.05, word.speaker_confidence ?? 0.5);
+    scores.set(word.speaker, (scores.get(word.speaker) ?? 0) + weight);
+  }
+  let bestSpeaker = fallback;
+  let bestScore = -1;
+  for (const [speaker, score] of scores) {
+    if (score > bestScore) {
+      bestSpeaker = speaker;
+      bestScore = score;
+    }
+  }
+  return bestSpeaker;
+}
+
 // Transcribe a local audio file into diarized utterances.
 export async function transcribeClip(filePath: string): Promise<DeepgramUtterance[]> {
   const dg = getDeepgram();
@@ -47,7 +74,12 @@ export async function transcribeClip(filePath: string): Promise<DeepgramUtteranc
   return response.results.utterances
     .filter((u) => (u.transcript ?? "").trim().length > 0)
     .map((u) => ({
-      speaker: u.speaker ?? 0,
+      // Prerecorded responses include per-word speaker confidence. Weighting the
+      // whole utterance prevents one uncertain word from relabeling a turn.
+      speaker: confidentUtteranceSpeaker(
+        u.speaker ?? 0,
+        (u as typeof u & { words?: DiarizedWord[] }).words
+      ),
       transcript: (u.transcript ?? "").trim(),
       start: u.start ?? 0,
       end: u.end ?? 0,

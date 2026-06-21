@@ -8,7 +8,13 @@ let client: ReturnType<typeof createClient> | null = null;
 export async function getRedis(): Promise<ReturnType<typeof createClient>> {
   if (client && client.isOpen) return client;
   const url = process.env.REDIS_URL || "redis://localhost:6379";
-  client = createClient({ url });
+  client = createClient({
+    url,
+    socket: {
+      connectTimeout: 800,
+      reconnectStrategy: false,
+    },
+  });
   client.on("error", (err) =>
     console.error("[redis] client error:", (err as Error).message)
   );

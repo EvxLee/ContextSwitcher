@@ -13,12 +13,20 @@
 import * as mock from "./mockDebateClient";
 import * as real from "./realDebateClient";
 
-// "demo" / "Start the chaos" ALWAYS plays the scripted mock — bulletproof, no
-// keys, no clip, can't fail. "mic" / "Go live" ALWAYS uses the real streaming
-// pipeline. (No env flag — clearer and avoids breaking the safe demo.)
-export const startDebate: typeof real.startDebate = (source, onTurn, onComplete, onInterim) => {
-  const impl = source === "mic" ? real : mock;
-  return impl.startDebate(source, onTurn, onComplete, onInterim);
+// Mic mode is always real. Demo mode follows the explicit public flag so local
+// development can exercise the recorded Deepgram -> Claude pipeline while the
+// flag-off path remains a stage-safe mock.
+export const startDebate: typeof real.startDebate = (
+  source,
+  onTurn,
+  onComplete,
+  onInterim,
+  onError,
+  topic
+) => {
+  const useRealPipeline = process.env.NEXT_PUBLIC_USE_REAL_PIPELINE === "true";
+  const impl = source === "mic" || useRealPipeline ? real : mock;
+  return impl.startDebate(source, onTurn, onComplete, onInterim, onError, topic);
 };
 
 // Use the real Claude verdict when the API is reachable; fall back to the mock

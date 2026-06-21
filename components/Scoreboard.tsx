@@ -91,11 +91,11 @@ function ScoreSide({
       <div className="score-side__topline">
         <span className="speaker-dot" />
         <span>Human {speaker}</span>
-        {isLeading && <span className="leading-chip">HOT RN</span>}
+        {isLeading && <span className="leading-chip">LEADING</span>}
       </div>
       <AnimatedScore score={score} animate={active} eventId={eventId} />
       <div className="score-side__footer">
-        <span>CHAOS POINTS</span>
+        <span>COURT POINTS</span>
         {active && delta !== undefined && (
           <span
             key={eventId}
@@ -120,11 +120,11 @@ export function Scoreboard({ scoreA, scoreB, status, lastTurn }: ScoreboardProps
     <aside className="scoreboard panel-frame" aria-live="polite">
       <div className="scoreboard__header">
         <div>
-          <span className="section-kicker">Points are happening</span>
-          <h2>Chaos scoreboard</h2>
+          <span className="section-kicker">Standing before the court</span>
+          <h2>Case score</h2>
         </div>
         <div className={`status-pill status-pill--${status}`}>
-          <span /> {status === "setup" ? "WAITING" : status === "live" ? "COOKING" : "DONE"}
+          <span /> {status === "setup" ? "IN RECESS" : status === "live" ? "IN SESSION" : "ADJOURNED"}
         </div>
       </div>
 
@@ -151,9 +151,9 @@ export function Scoreboard({ scoreA, scoreB, status, lastTurn }: ScoreboardProps
       </div>
 
       <div className="scoreboard__legend">
-        <span><b className="legend-plus">+1 to +3</b> Good point</span>
-        <span><b className="legend-plus">+1</b> Nice comeback</span>
-        <span><b className="legend-minus">-1 to -3</b> Logic oops</span>
+        <span><b className="legend-plus">+1 to +3</b> Supported claim</span>
+        <span><b className="legend-plus">+1</b> Direct rebuttal</span>
+        <span><b className="legend-minus">-1 to -3</b> Sustained objection</span>
       </div>
     </aside>
   );

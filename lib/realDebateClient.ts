@@ -8,9 +8,10 @@ import { decideWinner } from "./scoring";
 import { postJSON } from "./fetchJson";
 import { buildCalloutText } from "./callout";
 import { startMicDebate } from "./realtimeDebateClient";
+import { MOCK_TOPIC, mockTurns } from "./mockTurns";
 
 const PACING_MS = 900; // brief "ref is thinking" gap between turns so the scoreboard can react
-const MIC_TOPIC = "Pineapple belongs on pizza."; // default topic for live mic (UI can override later)
+const DEFAULT_MIC_TOPIC = "Pineapple belongs on pizza.";
 
 interface TranscribeResponse {
   topic: string;
@@ -31,11 +32,18 @@ export function startDebate(
   audioSource: File | "mic" | "demo",
   onTurn: (turn: Turn) => void,
   onComplete: (session: DebateSession) => void,
-  onInterim?: (speaker: Speaker | null, text: string) => void
+  onInterim?: (speaker: Speaker | null, text: string) => void,
+  onError?: (message: string) => void,
+  topic = DEFAULT_MIC_TOPIC
 ): { stop: () => void } {
   // Live mic = true real-time streaming (its own implementation).
   if (audioSource === "mic") {
-    return startMicDebate(MIC_TOPIC, { onTurn, onComplete, onInterim });
+    return startMicDebate(topic.trim() || DEFAULT_MIC_TOPIC, {
+      onTurn,
+      onComplete,
+      onInterim,
+      onError,
+    });
   }
 
   let stopped = false;
@@ -62,7 +70,23 @@ export function startDebate(
       }
       data = (await res.json()) as TranscribeResponse;
     } else {
-      data = await postJSON<TranscribeResponse>("/api/transcribe", { source: "demo" });
+      try {
+        data = await postJSON<TranscribeResponse>("/api/transcribe", { source: "demo" });
+      } catch (error) {
+        // Keep the AI judging path usable before a recorded clip is supplied.
+        // These are raw scripted statements, not pre-scored mock turns. Every
+        // statement still goes through /api/analyze below.
+        if (!(error instanceof Error) || !error.message.includes("No demo clip found")) throw error;
+        data = {
+          topic: MOCK_TOPIC,
+          turns: mockTurns.map((turn, index) => ({
+            speaker: turn.speaker,
+            text: turn.text,
+            start: index * 2.6,
+            end: index * 2.6 + 2.2,
+          })),
+        };
+      }
     }
     session.topic = data.topic;
 
@@ -115,11 +139,19 @@ export function startDebate(
     session.winner = decideWinner(session.scoreA, session.scoreB);
     onComplete(session);
   })().catch((err) => {
-    // No onError in the contract; log so integration issues are visible.
     console.error("[startDebate] pipeline error:", err);
+    onError?.((err as Error).message || "The debate pipeline stopped unexpectedly.");
   });
 
-  return { stop: () => { stopped = true; } };
+  return {
+    stop: () => {
+      if (stopped) return;
+      stopped = true;
+      session.status = "finished";
+      session.winner = decideWinner(session.scoreA, session.scoreB);
+      onComplete(session);
+    },
+  };
 }
 
 export async function getVerdict(

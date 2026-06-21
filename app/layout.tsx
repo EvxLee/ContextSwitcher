@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Collina | AI Debate Playground",
-  description: "Big opinions go in. Scores, fallacies, and a tiny bit of chaos come out.",
+  title: "Debate Referee | Court of Public Opinion",
+  description: "A live AI court for arguments, fallacies, scoring, and final judgments.",
 };
 
 export default function RootLayout({

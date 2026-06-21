@@ -29,6 +29,27 @@ export interface RetrievedFallacy extends FallacyDef {
   score: number; // cosine similarity in [0,1], higher = more relevant
 }
 
+function addLexicalCandidates(
+  text: string,
+  candidates: RetrievedFallacy[],
+  k: number
+): RetrievedFallacy[] {
+  const cueNames: string[] = [];
+  if (/\bwhat\s+about\b/i.test(text)) cueNames.push("Whataboutism");
+
+  for (const name of cueNames.reverse()) {
+    const existingIndex = candidates.findIndex((candidate) => candidate.name.startsWith(name));
+    if (existingIndex >= 0) {
+      const [existing] = candidates.splice(existingIndex, 1);
+      candidates.unshift(existing);
+      continue;
+    }
+    const fallacy = FALLACIES.find((item) => item.name.startsWith(name));
+    if (fallacy) candidates.unshift({ ...fallacy, score: 1 });
+  }
+  return candidates.slice(0, k);
+}
+
 // Snippets we embed per fallacy: the definition line plus each example phrase.
 function fallacySnippets(f: FallacyDef): string[] {
   return [`${f.name}. ${f.definition}`, ...f.examples];
@@ -126,7 +147,11 @@ export async function retrieveFallacies(
         });
       }
     }
-    return [...best.values()].sort((a, b) => b.score - a.score).slice(0, k);
+    return addLexicalCandidates(
+      text,
+      [...best.values()].sort((a, b) => b.score - a.score),
+      k
+    );
   } catch (err) {
     console.warn(
       "[fallacyStore] Redis retrieval failed, using in-process fallback:",
@@ -158,5 +183,9 @@ async function localFallback(
       best.set(fallacy.name, { ...fallacy, score });
     }
   }
-  return [...best.values()].sort((a, b) => b.score - a.score).slice(0, k);
+  return addLexicalCandidates(
+    text,
+    [...best.values()].sort((a, b) => b.score - a.score),
+    k
+  );
 }

@@ -11,7 +11,9 @@ export function startDebate(
   _audioSource: File | "mic" | "demo",
   onTurn: (turn: Turn) => void,
   onComplete: (session: DebateSession) => void,
-  _onInterim?: (speaker: Speaker | null, text: string) => void
+  _onInterim?: (speaker: Speaker | null, text: string) => void,
+  _onError?: (message: string) => void,
+  _topic?: string
 ): { stop: () => void } {
   let stopped = false;
   const timers: ReturnType<typeof setTimeout>[] = [];
@@ -46,8 +48,12 @@ export function startDebate(
 
   return {
     stop: () => {
+      if (stopped) return;
       stopped = true;
       timers.forEach(clearTimeout);
+      session.status = "finished";
+      session.winner = decideWinner(session.scoreA, session.scoreB);
+      onComplete(session);
     },
   };
 }

@@ -176,7 +176,6 @@ export function useRefAudio() {
     isSpeaking,
     muted,
     playCallout,
-    speakVerdict: speakText,
     stopAudio,
     toggleMuted,
     unlockAudio,

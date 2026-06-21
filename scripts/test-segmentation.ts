@@ -30,9 +30,26 @@ check("completes the prior turn when the speaker changes across messages", () =>
 
 check("handles a speaker change within a single message", () => {
   const a = new LiveTurnAssembler();
-  const completed = a.addFinalWords([w("hi", 0), w("bye", 1)]);
-  assert.deepStrictEqual(completed, [{ speaker: "A", text: "hi" }]);
-  assert.strictEqual(a.currentText(), "bye");
+  const completed = a.addFinalWords([w("hello", 0), w("good", 1), w("bye", 1)]);
+  assert.deepStrictEqual(completed, [{ speaker: "A", text: "hello" }]);
+  assert.strictEqual(a.currentText(), "good bye");
+});
+
+check("ignores an isolated one-word speaker wobble", () => {
+  const a = new LiveTurnAssembler();
+  const completed = a.addFinalWords([w("Pineapple", 0), w("really", 1), w("works", 0)]);
+  assert.deepStrictEqual(completed, []);
+  assert.strictEqual(a.currentSpeaker(), "A");
+  assert.strictEqual(a.currentText(), "Pineapple really works");
+});
+
+check("preserves a one-word interjection when a pause confirms it", () => {
+  const a = new LiveTurnAssembler();
+  a.addFinalWords([w("I", 0), w("disagree", 0), w("No", 1)]);
+  assert.deepStrictEqual(a.flushAll(), [
+    { speaker: "A", text: "I disagree" },
+    { speaker: "B", text: "No" },
+  ]);
 });
 
 check("flush returns and clears the current turn", () => {

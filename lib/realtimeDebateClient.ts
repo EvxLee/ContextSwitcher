@@ -34,6 +34,7 @@ export interface MicHandlers {
   onTurn: (turn: Turn) => void;
   onComplete: (session: DebateSession) => void;
   onInterim?: (speaker: Speaker | null, text: string) => void;
+  onError?: (message: string) => void;
 }
 
 function pickMimeType(): string {
@@ -65,7 +66,10 @@ export function startMicDebate(topic: string, handlers: MicHandlers): { stop: ()
   const enqueueTurn = (speaker: Speaker, text: string) => {
     chain = chain
       .then(() => processTurn(speaker, text))
-      .catch((e) => console.error("[mic] turn error:", e));
+      .catch((e) => {
+        console.error("[mic] turn error:", e);
+        handlers.onError?.((e as Error).message || "The AI judge could not score that turn.");
+      });
   };
 
   async function processTurn(speaker: Speaker, text: string) {
@@ -119,6 +123,8 @@ export function startMicDebate(topic: string, handlers: MicHandlers): { stop: ()
       smart_format: "true",
       punctuate: "true",
       utterance_end_ms: "1000",
+      endpointing: "300",
+      vad_events: "true",
     });
     // Deepgram browser auth: API key via websocket subprotocol (only method that
     // works in a browser — headers and JWT temp-tokens don't).
@@ -144,19 +150,25 @@ export function startMicDebate(topic: string, handlers: MicHandlers): { stop: ()
       if (msg.type === "Results") {
         const alt = msg.channel?.alternatives?.[0];
         if (!msg.is_final) {
-          if (alt?.transcript) handlers.onInterim?.(null, alt.transcript);
+          const latestSpeaker = alt?.words?.at(-1)?.speaker;
+          if (alt?.transcript) handlers.onInterim?.(latestSpeaker === undefined ? null : latestSpeaker === 0 ? "A" : "B", alt.transcript);
           return;
         }
         for (const t of assembler.addFinalWords(alt?.words ?? [])) enqueueTurn(t.speaker, t.text);
         handlers.onInterim?.(assembler.currentSpeaker(), assembler.currentText());
       } else if (msg.type === "UtteranceEnd") {
-        const t = assembler.flush();
-        if (t) enqueueTurn(t.speaker, t.text);
+        for (const t of assembler.flushAll()) enqueueTurn(t.speaker, t.text);
       }
     };
 
-    socket.onerror = (e) => console.error("[mic] socket error:", e);
-  })().catch((err) => console.error("[startMicDebate] setup error:", err));
+    socket.onerror = (e) => {
+      console.error("[mic] socket error:", e);
+      handlers.onError?.("Deepgram lost the live audio connection.");
+    };
+  })().catch((err) => {
+    console.error("[startMicDebate] setup error:", err);
+    handlers.onError?.((err as Error).message || "The microphone could not start.");
+  });
 
   function stop() {
     if (ended) return;
@@ -169,11 +181,14 @@ export function startMicDebate(topic: string, handlers: MicHandlers): { stop: ()
     mediaStream?.getTracks().forEach((t) => t.stop());
 
     // Process the final in-progress turn, then wrap up after analysis settles.
-    const last = assembler.flush();
-    if (last) {
+    const remaining = assembler.flushAll();
+    for (const last of remaining) {
       chain = chain
         .then(() => processTurn(last.speaker, last.text))
-        .catch((e) => console.error("[mic] final turn error:", e));
+        .catch((e) => {
+          console.error("[mic] final turn error:", e);
+          handlers.onError?.((e as Error).message || "The AI judge could not score the final turn.");
+        });
     }
     chain.then(() => {
       try {

@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000** → click **"Start the chaos"**. That's the full demo, no keys needed.
+Open **http://localhost:3000** → click **"Call to order"**. That's the full demo, no keys needed.
 
 ---
 
@@ -21,8 +21,8 @@ Open **http://localhost:3000** → click **"Start the chaos"**. That's the full 
 
 | Button | What it does | Needs keys? |
 |---|---|---|
-| **Start the chaos** | Plays a scripted debate (mock). Polished, offline, can't fail. **Use this for the demo.** | ❌ No |
-| **Go live (mic)** | Real-time: you + a friend talk into the mic, the AI judges live. | ✅ Yes (see below) |
+| **Call to order** | Plays a scripted courtroom rehearsal. Polished, offline, can't fail. **Keep this as the stage backup.** | ❌ No |
+| **Go live (mic)** | Pick any topic, debate through the mic, and watch the real AI pipeline judge each turn. | ✅ Yes (see below) |
 
 ---
 
@@ -35,7 +35,7 @@ npm run dev      # start the app
 
 1. Open **http://localhost:3000**
 2. Press **`F`** for fullscreen presentation mode
-3. Click **"Start the chaos"**
+3. Click **"Call to order"**
 
 No API keys, no internet, no setup. This is the stage-safe demo.
 
@@ -48,9 +48,9 @@ Live mode needs three services. Do these once:
 ### Step 1 — Add your keys
 Copy the example file and fill it in:
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
-Edit `.env`:
+Edit `.env.local`:
 ```env
 ANTHROPIC_API_KEY=sk-ant-...        # Claude (analysis + verdict)
 DEEPGRAM_API_KEY=...                # Deepgram (mic + voice) — needs "Member" role
@@ -68,7 +68,7 @@ npm run seed:redis     # load the fallacy taxonomy (run once)
 ```bash
 npm run dev
 ```
-Open **http://localhost:3000** → click **"Go live (mic)"** → allow the microphone → debate → click **"End debate"** for the verdict.
+Open **http://localhost:3000** → enter a topic → click **"Go live (mic)"** → allow the microphone → debate → click **"End debate"** for the verdict.
 
 > 🎙️ **Tip for clean voice separation:** take clear turns, don't talk over each other, and ideally use two distinct-sounding voices.
 
@@ -78,7 +78,7 @@ Open **http://localhost:3000** → click **"Go live (mic)"** → allow the micro
 
 | Key / Button | Action |
 |---|---|
-| `Start the chaos` | Run the mock demo |
+| `Call to order` | Run the scripted courtroom rehearsal |
 | `Go live (mic)` | Start a real-time mic debate |
 | `End debate` | Stop the mic and get the verdict |
 | `F` | Fullscreen presentation mode |

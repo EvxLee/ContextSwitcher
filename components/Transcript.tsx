@@ -14,7 +14,7 @@ interface TranscriptProps {
 function StrengthMeter({ strength }: { strength: number }) {
   return (
     <div className="strength-meter" aria-label={`Argument strength ${strength} out of 5`}>
-      <span>POINT POWER</span>
+      <span>EVIDENCE</span>
       <div className="strength-meter__bars">
         {[1, 2, 3, 4, 5].map((value) => (
           <i key={value} className={value <= strength ? "is-filled" : ""} />
@@ -47,8 +47,8 @@ function TurnCard({
       <div className="turn-card__content">
         <header>
           <div>
-            <span className="turn-card__speaker">HUMAN {turn.speaker}</span>
-            <span className="turn-card__number">HOT TAKE {String(index + 1).padStart(2, "0")}</span>
+            <span className="turn-card__speaker">COUNSEL {turn.speaker}</span>
+            <span className="turn-card__number">EXHIBIT {String(index + 1).padStart(2, "0")}</span>
           </div>
           <span className={`turn-delta turn-delta--${deltaTone}`}>
             {turn.pointDelta > 0 ? "+" : ""}{turn.pointDelta} PTS
@@ -67,7 +67,7 @@ function TurnCard({
         {turn.callout && (
           <div className={`ref-callout ${isCalloutPlaying ? "ref-callout--playing" : ""}`}>
             <SparkIcon className="h-5 w-5" />
-            <span><b>AI REF</b> &ldquo;{turn.callout.text}&rdquo;</span>
+            <span><b>THE COURT</b> &ldquo;{turn.callout.text}&rdquo;</span>
             <span className={`sound-wave ${isCalloutPlaying ? "is-playing" : ""}`}><i /><i /><i /><i /></span>
           </div>
         )}
@@ -76,10 +76,10 @@ function TurnCard({
           <StrengthMeter strength={turn.argumentStrength} />
           <span className={turn.fallacies.length ? "ruling ruling--foul" : "ruling"}>
             {turn.fallacies.length
-              ? "FALLACY CAUGHT"
+              ? "OBJECTION SUSTAINED"
               : turn.pointDelta > 0
-                ? "POINT LANDED"
-                : "VIBES, NO EVIDENCE"}
+                ? "ENTERED INTO RECORD"
+                : "INSUFFICIENT SUPPORT"}
           </span>
         </footer>
       </div>
@@ -92,8 +92,8 @@ function ThinkingRow() {
     <div className="thinking-row" role="status">
       <div className="thinking-row__icon"><SparkIcon className="h-5 w-5" /></div>
       <div>
-        <b>THE AI REF IS COOKING</b>
-        <span>Checking the logic and detecting suspicious debate behavior</span>
+        <b>THE COURT IS DELIBERATING</b>
+        <span>Reviewing the argument, evidence, and possible fallacies</span>
       </div>
       <div className="thinking-dots"><i /><i /><i /></div>
     </div>
@@ -117,21 +117,21 @@ export function Transcript({
     <section className="transcript panel-frame" aria-label="Live debate transcript">
       <div className="transcript__header">
         <div>
-          <span className="section-kicker">Receipts, live</span>
-          <h2>Argument feed</h2>
+          <span className="section-kicker">Official record</span>
+          <h2>Live transcript</h2>
         </div>
-        <span className="turn-count">{turns.length} HOT TAKES</span>
+        <span className="turn-count">{turns.length} STATEMENTS</span>
       </div>
 
       <div className="transcript__feed" aria-live="polite">
         {status === "setup" && turns.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__whistle"><SparkIcon className="h-10 w-10" /></div>
-            <span className="section-kicker">Ready to get opinionated</span>
-            <h3>Release the hot takes</h3>
-            <p>Press start. The AI ref will reward good points and roast bad logic in real time.</p>
+            <span className="section-kicker">The court is ready</span>
+            <h3>Present your case</h3>
+            <p>Begin the debate. Strong arguments earn the court&apos;s favor. Bad logic earns an objection.</p>
             <button type="button" className="primary-button" onClick={onStart}>
-              <PlayIcon className="h-5 w-5" /> Let them argue
+              <PlayIcon className="h-5 w-5" /> Call court to order
             </button>
           </div>
         ) : (

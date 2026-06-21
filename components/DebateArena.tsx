@@ -34,9 +34,16 @@ interface DebateArenaProps {
   initialTopic: string;
 }
 
+const LIVE_TOPIC_PRESETS = [
+  "AI should be allowed to vote.",
+  "College should be free.",
+  "Social media does more harm than good.",
+];
+
 export function DebateArena({ initialTopic }: DebateArenaProps) {
   const [status, setStatus] = useState<DebateStatus>("setup");
   const [topic, setTopic] = useState(initialTopic);
+  const [topicDraft, setTopicDraft] = useState(initialTopic);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [scoreA, setScoreA] = useState(0);
   const [scoreB, setScoreB] = useState(0);
@@ -44,10 +51,12 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
   const [thinking, setThinking] = useState(false);
   const [session, setSession] = useState<DebateSession | null>(null);
   const [verdictLoading, setVerdictLoading] = useState(false);
+  const [ending, setEnding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mode, setMode] = useState<"demo" | "mic">("demo");
   const [interim, setInterim] = useState<{ speaker: Speaker | null; text: string } | null>(null);
+  const [liveStartedAt, setLiveStartedAt] = useState<number | null>(null);
   const controllerRef = useRef<DebateController | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,7 +66,6 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
     isSpeaking,
     muted,
     playCallout,
-    speakVerdict,
     stopAudio,
     toggleMuted,
     unlockAudio,
@@ -91,6 +99,7 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
   }, []);
 
   const launch = useCallback((source: "demo" | "mic") => {
+    const selectedTopic = topicDraft.trim() || initialTopic;
     const runId = ++runIdRef.current;
     controllerRef.current?.stop();
     if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
@@ -99,13 +108,15 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
 
     setMode(source);
     setStatus("live");
-    setTopic(initialTopic);
+    setTopic(source === "mic" ? selectedTopic : initialTopic);
+    setLiveStartedAt(source === "mic" ? Date.now() : null);
     setTurns([]);
     setScoreA(0);
     setScoreB(0);
     setLastTurn(null);
     setSession(null);
     setVerdictLoading(false);
+    setEnding(false);
     setInterim(null);
     setThinking(true);
     setError(null);
@@ -130,6 +141,7 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
           if (runId !== runIdRef.current) return;
           if (thinkingTimerRef.current) clearTimeout(thinkingTimerRef.current);
           setThinking(false);
+          setEnding(false);
           setStatus("finished");
           setTopic(completedSession.topic || initialTopic);
           setTurns(completedSession.turns);
@@ -144,7 +156,6 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
             if (runId !== runIdRef.current) return;
             const ruledSession = { ...completedSession, ...result };
             setSession(ruledSession);
-            speakVerdict(result.verdict);
           } catch {
             if (runId !== runIdRef.current) return;
             setSession({
@@ -160,7 +171,14 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
         (speaker, text) => {
           if (runId !== runIdRef.current) return;
           setInterim(text ? { speaker, text } : null);
-        }
+        },
+        (message) => {
+          if (runId !== runIdRef.current) return;
+          setThinking(false);
+          setEnding(false);
+          setError(message);
+        },
+        selectedTopic
       );
     } catch {
       if (runId !== runIdRef.current) return;
@@ -168,11 +186,17 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
       setThinking(false);
       setError("The debate refused to launch. Check the audio and give it another dramatic click.");
     }
-  }, [initialTopic, playCallout, speakVerdict, stopAudio, unlockAudio]);
+  }, [initialTopic, playCallout, stopAudio, topicDraft, unlockAudio]);
 
   const runDebate = useCallback(() => launch("demo"), [launch]);
   const goLive = useCallback(() => launch("mic"), [launch]);
-  const stopDebate = useCallback(() => controllerRef.current?.stop(), []);
+  const stopDebate = useCallback(() => {
+    if (!controllerRef.current || status !== "live" || ending) return;
+    setEnding(true);
+    setThinking(true);
+    setInterim(null);
+    controllerRef.current.stop();
+  }, [ending, status]);
 
   useEffect(() => {
     const handleDemoShortcut = (event: KeyboardEvent) => {
@@ -214,7 +238,7 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
           className={`foul-impact foul-impact--severity-${foulSeverity}`}
           aria-hidden="true"
         >
-          <span>LOGIC GLITCH</span>
+          <span>OBJECTION SUSTAINED</span>
         </div>
       ) : null}
       <div className="ambient ambient--one" />
@@ -222,12 +246,14 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
 
       <nav className="topbar">
         <div className="brand">
-          <span className="brand__mark"><SparkIcon className="h-6 w-6" /></span>
-          <div><b>COLLINA</b><span>DEBATE CHAOS ENGINE</span></div>
+          <span className="brand__mark">DR</span>
+          <div><b>DEBATE REFEREE</b><span>COURT OF PUBLIC OPINION</span></div>
         </div>
 
         <div className="topbar__actions">
-          <span className="demo-chip"><i /> PLAYGROUND MODE</span>
+          <span className={`demo-chip ${mode === "mic" && status === "live" ? "demo-chip--live" : ""}`}>
+            <i /> {mode === "mic" && status === "live" ? "LIVE AI PIPELINE" : "COURT IN SESSION"}
+          </span>
           <button
             type="button"
             className={`icon-button ${isFullscreen ? "is-active" : ""}`}
@@ -249,15 +275,15 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
           {status === "setup" ? (
             <>
               <button type="button" className="nav-button" onClick={runDebate}>
-                <PlayIcon className="h-4 w-4" /> Start the chaos
+                <PlayIcon className="h-4 w-4" /> Call to order
               </button>
               <button type="button" className="nav-button nav-button--quiet" onClick={goLive}>
                 <MicIcon className="h-4 w-4" /> Go live (mic)
               </button>
             </>
-          ) : mode === "mic" && status === "live" ? (
-            <button type="button" className="nav-button" onClick={stopDebate}>
-              <StopIcon className="h-4 w-4" /> End debate
+          ) : status === "live" ? (
+            <button type="button" className="nav-button" onClick={stopDebate} disabled={ending}>
+              <StopIcon className="h-4 w-4" /> {ending ? "Closing arguments" : "End debate"}
             </button>
           ) : (
             <button type="button" className="nav-button nav-button--quiet" onClick={runDebate}>
@@ -271,7 +297,7 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
         {error && (
           <div className="arena-alert" role="alert">
             <div>
-              <b>AI REF TRIPPED</b>
+              <b>COURT REPORTER ERROR</b>
               <span>{error}</span>
             </div>
             <button type="button" onClick={runDebate}>TRY AGAIN</button>
@@ -280,27 +306,61 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
 
         <header className="topic-banner panel-frame">
           <div className="topic-banner__label">
-            <span>TODAY&apos;S EXTREMELY IMPORTANT QUESTION</span>
+            <span>CASE BEFORE THE COURT</span>
             <i />
           </div>
-          <h1>&ldquo;{topic}&rdquo;</h1>
+          {status === "setup" ? (
+            <div className="topic-editor">
+              <label htmlFor="debate-topic">Choose the case</label>
+              <input
+                id="debate-topic"
+                value={topicDraft}
+                maxLength={100}
+                onChange={(event) => setTopicDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    goLive();
+                  }
+                }}
+                aria-describedby="topic-help"
+              />
+              <div className="topic-presets" id="topic-help">
+                {LIVE_TOPIC_PRESETS.map((preset) => (
+                  <button key={preset} type="button" onClick={() => setTopicDraft(preset)}>
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <h1>&ldquo;{topic}&rdquo;</h1>
+          )}
           <div className="topic-banner__meta">
-            <span>2 HUMANS</span><i /><span>1 AI REF</span><i /><span>ZERO CHILL</span>
+            <span>COUNSEL A</span><i /><span>COUNSEL B</span><i /><span>AI PRESIDING</span>
           </div>
           <div className={`topic-banner__progress topic-banner__progress--${status}`}>
             <span />
           </div>
         </header>
 
-        {mode === "mic" && status === "live" && interim ? (
-          <div
-            className="panel-frame"
-            style={{ padding: "12px 16px", display: "flex", gap: "12px", alignItems: "center" }}
-          >
-            <span className="section-kicker" style={{ whiteSpace: "nowrap" }}>
-              LIVE · SPEAKER {interim.speaker ?? "?"}
-            </span>
-            <p style={{ margin: 0, opacity: 0.85 }}>{interim.text}</p>
+        {mode === "mic" && status === "live" ? (
+          <div className="live-proof panel-frame">
+            <div className="live-proof__pipeline" aria-label="Live AI processing pipeline">
+              <b><i /> LIVE</b>
+              <span>Deepgram hearing</span><em>→</em>
+              <span>Redis recalling</span><em>→</em>
+              <span>Claude judging</span>
+            </div>
+            <div className="live-proof__speech">
+              <span className="section-kicker">
+                {interim ? `SPEAKER ${interim.speaker ?? "?"}` : "READY FOR COUNSEL A"}
+              </span>
+              <p>
+                {interim?.text || "Take clear turns and pause briefly between speakers—the court is listening."}
+              </p>
+              {liveStartedAt ? <time>SESSION {new Date(liveStartedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time> : null}
+            </div>
           </div>
         ) : null}
 
@@ -321,10 +381,10 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
                 <SparkIcon className="h-6 w-6" />
               </div>
               <div>
-                <span className="section-kicker">AI ref status</span>
-                <b>{isSpeaking ? "Calling it out loud" : thinking ? "Cooking up a ruling" : status === "finished" ? "The last word is ready" : "Listening for nonsense"}</b>
+              <span className="section-kicker">Presiding judge</span>
+                <b>{isSpeaking ? "Calling a foul" : ending ? "Reviewing the record" : thinking ? "Weighing the argument" : status === "finished" ? "Judgment entered" : "Court is listening"}</b>
               </div>
-              <span className="ref-booth__audio">SOUND {muted ? "MUTED" : isSpeaking ? "LIVE" : "READY"}</span>
+              <span className="ref-booth__audio">CALLOUTS {muted ? "MUTED" : isSpeaking ? "LIVE" : "READY"}</span>
             </section>
 
             {session && <WinnerCard session={session} loading={verdictLoading} onReplay={runDebate} />}
@@ -332,8 +392,8 @@ export function DebateArena({ initialTopic }: DebateArenaProps) {
         </div>
 
         <footer className="app-footer">
-          <span>BUILT FOR BIG OPINIONS AND QUESTIONABLE LOGIC</span>
-          <div><i /> Deepgram hears it <i /> Claude calls it <i /> Redis remembers it</div>
+          <span>ALL ARGUMENTS ENTERED INTO THE RECORD</span>
+          <div><i /> Deepgram records <i /> Claude rules <i /> Redis recalls</div>
         </footer>
       </div>
     </main>
